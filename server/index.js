@@ -59,11 +59,14 @@ app.post('/uplaod', uplaod.single('file'), (req, res) => {
     // 说明已经接收完了所有的 chunk
     const destFilePath = resolve(__dirname, 'uploads', uuid)
 
+    // 合并临时文件并将其删除
     allFiles[uuid].forEach(async filePath => {
       const content = readFileSync(filePath)
       appendFileSync(destFilePath, content)
       unlinkSync(filePath)
     })
+    allFiles[uuid] = []
+
     res.send(`file —— ${uuid} uploaded successfully`)
     return
   }

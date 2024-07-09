@@ -11,27 +11,31 @@ const chunkSize = 4
 /**
  * 文件切片
  * @param { File } file 文件对象
- * @param { number } start 开始位置
- * @param { number } end 结束位置
- * @param { Array } allFileChunks 所有文件切片
- * @returns void
+ * @returns Array<File> 文件的所有切片组成的 File 对象
  */
-function splitChunkForFile(file, start, end, allFileChunks) {
+function splitChunkForFile(file) {
   const { name, size, type, lastModified } = file
 
-  // 说明文件已经切割完毕
-  if (start > size) {
-    return
+  // 存放所有切片
+  const allFileChunks = []
+  
+  // 每一片的开始位置
+  let start = 0
+
+  // 循环切每一片，直到整个文件切完
+  while (start <= size) {
+    const chunk = file.slice(start, Math.min(start + chunkSize, size))
+    const newFileChunk = new File([chunk], name + allFileChunks.length, {
+      type,
+      lastModified,
+    })
+
+    start += chunkSize
+
+    allFileChunks.push(newFileChunk)
   }
 
-  const chunk = file.slice(start, Math.min(end, size))
-  const newFileChunk = new File([chunk], name + allFileChunks.length, {
-    type,
-    lastModified,
-  })
-
-  allFileChunks.push(newFileChunk)
-  splitChunkForFile(file, end, end + chunkSize, allFileChunks)
+  return allFileChunks
 }
 
 // 上传文件
@@ -39,10 +43,8 @@ async function handleUpload() {
   // 获取文件对象
   const file = inputRef.value.files[0]
 
-  // 存放所有切片
-  const allFileChunks = []
   // 文件切片
-  splitChunkForFile(file, 0, chunkSize, allFileChunks)
+  const allFileChunks = splitChunkForFile(file)
 
   // 遍历所有切片并上传
   for (let i = 0; i < allFileChunks.length; i++) {
