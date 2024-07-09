@@ -3,7 +3,7 @@ import cors from 'cors'
 import multer from 'multer'
 import { dirname, resolve } from 'path'
 import { fileURLToPath } from 'url'
-import { existsSync, mkdirSync } from 'fs'
+import { existsSync, mkdirSync, unlinkSync, readFileSync, appendFileSync } from 'fs'
 
 // 解决 ESM 无法使用 __dirname 变量的问题
 const __filename = fileURLToPath(import.meta.url)
@@ -12,7 +12,9 @@ const __dirname = dirname(__filename)
 const app = express()
 
 // 解决跨域问题
-app.use(cors())
+app.use(cors({
+  maxAge: 86400
+}))
 
 /**
  * Multer 是一个 node.js 中间件，用于处理 multipart/form-data 类型的表单数据，它主要用于上传文件
@@ -41,8 +43,31 @@ app.get('/', (_, res) => {
   res.send('Hello World!')
 })
 
-app.post('/uplaod', uplaod.single('file'), (_, res) => {
-  res.send('File uploaded successfully')
+// 以 uuid 为 key，文件所有的 chunks 组成的数组为 value
+const allFiles = {}
+
+app.post('/uplaod', uplaod.single('file'), (req, res) => {
+  const { uuid, index, total } = req.body
+  // chunk 的存储路径
+  const { path } = req.file
+
+  if (!allFiles[uuid]) allFiles[uuid] = []
+
+  allFiles[uuid][index] = path
+
+  if (allFiles[uuid].filter(item => item).length === +total) {
+    // 说明已经接收完了所有的 chunk
+    const destFilePath = resolve(__dirname, 'uploads', uuid)
+
+    allFiles[uuid].forEach(async filePath => {
+      const content = readFileSync(filePath)
+      appendFileSync(destFilePath, content)
+      unlinkSync(filePath)
+    })
+    res.send(`file —— ${uuid} uploaded successfully`)
+    return
+  }
+  res.send(`chunk —— ${uuid + index} uploaded successfully`)
 })
 
 app.listen(3000, () => {
