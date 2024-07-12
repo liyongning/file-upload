@@ -27,6 +27,9 @@ let curConcurrencyNum = 0
 // 最大并发数
 const MAX_CONCURRENCY_NUM = 6
 
+// 文件已上传的切片列表，每个元素都是 fileName + idx，比如：test.txt10
+let fileChunks = []
+
 // 上传文件
 async function handleUpload() {
   // 上传开始前的数据初始化
@@ -34,9 +37,14 @@ async function handleUpload() {
   allFileChunks = []
   hasBeenSplitNum = 0
   curConcurrencyNum = 0
+  fileChunks = []
 
   // 获取文件对象
   const file = inputRef.value.files[0]
+
+  // 获取当前文件已上传的切片列表
+  fileChunks = await getFileChunksByFileName(file.name)
+
   // 实例化 WebWorker，用来做文件切片
   worker = new WebWorker()
   // 将文件切片工作交给 web worker 来完成
@@ -83,11 +91,19 @@ function uploadChunk() {
   // 总 chunk 数
   const total =  Math.ceil(size / chunkSize)
 
-  // 并发数 + 1
-  curConcurrencyNum += 1
-
   // 从 allFileChunks 中获取指定索引的 fileChunk，这个索引的存在还是为了保证按顺序取和上传 chunk
   const fileChunk = allFileChunks[allFileChunksIdx]
+
+  // 说明当前切片已经上传过了，直接跳过，上传下一个
+  if (fileChunks.some(chunkPath => chunkPath.endsWith(fileChunk.name))) {
+    console.log(`切片 ${fileChunk.name} 已经上传过了，本次跳过`)
+    allFileChunksIdx += 1
+    uploadChunk()
+    return
+  }
+
+  // 并发数 + 1
+  curConcurrencyNum += 1
 
   const formData = new FormData()
   formData.append('file', fileChunk)
@@ -124,6 +140,21 @@ function uploadChunk() {
   allFileChunksIdx += 1
 
   uploadChunk()
+}
+
+/**
+ * 获取文件已上传的切片
+ * @param { string } fileName 文件名
+ */
+async function getFileChunksByFileName(fileName) {
+  const { data } = await axios.request({
+    url: 'http://localhost:3000/get-file-chunks-by-uuid',
+    method: 'GET',
+    params: {
+      uuid: fileName
+    }
+  })
+  return data
 }
 </script>
 

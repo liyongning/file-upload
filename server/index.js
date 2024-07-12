@@ -73,6 +73,14 @@ app.post('/uplaod', uplaod.single('file'), (req, res) => {
   res.send(`chunk —— ${uuid + index} uploaded successfully`)
 })
 
+// 获取指定文件的切片列表，即获取该文件已上传的切片，用于断点续传
+app.get('/get-file-chunks-by-uuid', (req, res) => {
+  // 这里的 uuid 就是文件名
+  const { uuid } = req.query || {}
+
+  res.send(allFiles[uuid] || [])
+})
+
 app.listen(3000, () => {
   console.log('Server listening on port 3000')
 })

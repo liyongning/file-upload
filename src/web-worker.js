@@ -15,7 +15,7 @@ function splitChunkForFile(file, chunkSize) {
   // 循环切每一片，直到整个文件切完
   while (start < size) {
     const chunk = file.slice(start, Math.min(start + chunkSize, size))
-    const newFileChunk = new File([chunk], name + chunkIdx++, {
+    const newFileChunk = new File([chunk], encodeURI(name + chunkIdx++), {
       type,
       lastModified,
     })
